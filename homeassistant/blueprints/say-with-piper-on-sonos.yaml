@@ -1,5 +1,7 @@
 # ***************************************************************************
-# *  Copyright 2022-2023 Joseph Molnar
+# * Based on a blueprint originally developed by Joseph Molnar (below)
+# *
+# * Copyright 2022-2023 Joseph Molnar
 # *
 # *  Licensed under the Apache License, Version 2.0 (the "License");
 # *  you may not use this file except in compliance with the License.
@@ -17,30 +19,23 @@
 # Announces the provided message on the specified speaker.
 
 blueprint:
-  name: "Text-to-Speech on Sonos"
+  name: "Piper tts on Sonos"
   description:
     This blueprint is used to add a script that will say messages on Sonos speakers. The script
     handles oddities to ensure a proper experience including saving/restore state, handling
     speaker groups, unmuting, pausing music, disabling repeat, adding delays, etc.
 
     I recommend setting the mode to parallel if you will use this script on more than one speaker.
+
+    EM -
   domain: script
   input:
-    tts_service_name:
-      name: Text-To-Speech Service Name
-      description:
-        The text-to-speech service to use when saying the message. This must match your Home
-        Assistant configuration.
-      default: "google_translate_say"
-      selector:
-        text:
     tts_language:
       name: Language
       description: The language to use with the text-to-speech service.
       default: "en"
       selector:
         text:
-
 fields:
   entity_id:
     description: The entity id of the Sonos speaker that will play the message.
@@ -80,18 +75,6 @@ fields:
     selector:
       number:
         min: 0
-        max: 60
-        step: 0.25
-        unit_of_measurement: seconds
-        mode: slider
-
-  max_wait:
-    name: "Maximum Wait"
-    description: THIS IS DEPRECATED AND WILL BE REMOVED IN FUTURE VERSIONS
-    required: false
-    selector:
-      number:
-        min: 1
         max: 60
         step: 0.25
         unit_of_measurement: seconds
@@ -222,13 +205,13 @@ sequence:
       is_volume_muted: false
 
   # FINALLY the actual call to say the message
-  - service: tts_speak
+  - service: tts.speak
     data:
       entity_id: "{{ entity_group_leader }}"
       message: "{{ message }}"
       language: "{{ tts_language }}"
     target:
-      entity_id: tts_piper
+      entity_id: tts.piper
 
   # not sure why, but setting the repeat doesn't always properly take
   # I can see it changing in the state  when the TTY goes the repeat
@@ -255,18 +238,18 @@ sequence:
     timeout: >-
       {# we grab the duration to try to set a wait that is roughly the right amount of time #}
       {# this is returned in seconds, so not extact accurate #}
-      {% set duration = state_attr(entity_group_leader, 'media_duration') %} 
-      {% if duration == None or duration <= 1 %} 
+      {% set duration = state_attr(entity_group_leader, 'media_duration') %}
+      {% if duration == None or duration <= 1 %}
         {# this should never happen, though sounds like there can be delays in response #}
         {# to get the state, so we put a mininum of one second ... the waiting for the state #}
         {# below should cover BUT if it doesn't than state_delay can make sure we are good #}
         {{ "00:00:01" }}
-      {% else %} 
+      {% else %}
         {# adding a second, just to help with potential cut-off #}
-        {% set duration = duration + 1 %} 
-        {% set seconds = duration % 60 %} 
-        {% set minutes = (duration / 60)|int % 60 %} 
-        {% set hours = (duration / 3600)|int %} 
+        {% set duration = duration + 1 %}
+        {% set seconds = duration % 60 %}
+        {% set minutes = (duration / 60)|int % 60 %}
+        {% set hours = (duration / 3600)|int %}
         {{ "{:02d}".format(hours) + ":" + "{:02d}".format(minutes) + ":" + "{:02d}".format(seconds) }}
       {% endif %}
 
