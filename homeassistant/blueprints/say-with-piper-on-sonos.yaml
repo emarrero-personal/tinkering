@@ -27,15 +27,9 @@ blueprint:
 
     I recommend setting the mode to parallel if you will use this script on more than one speaker.
 
-    EM -
+    EM - dumbed this down for piper
   domain: script
-  input:
-    tts_language:
-      name: Language
-      description: The language to use with the text-to-speech service.
-      default: "en"
-      selector:
-        text:
+  input: {}
 fields:
   entity_id:
     description: The entity id of the Sonos speaker that will play the message.
@@ -122,15 +116,6 @@ variables:
       {{ repeat }}
     {%- endif -%}
 
-  # oddly you can't get blueprint inputs directly into jina so . . .
-  # putting language into a variable to verify values and provide default
-  lang_hack: !input tts_language
-  tts_language: >-
-    {%- if lang_hack is undefined or lang_hack== None or lang_hack == "" -%}
-      "en"
-    {%- else -%}
-      {{ lang_hack }}
-    {%- endif -%}
   # the state delay is used for forcing a wait after key state changes
   # since the Sonos integration seems to report state too early which can cause
   # audio being cut-off or volume changes being heard that shouldn't be.
@@ -209,7 +194,7 @@ sequence:
     data:
       media_player_entity_id: "{{ entity_group_leader }}"
       message: "{{ message }}"
-      language: "{{ tts_language }}"
+      options: {}
     target:
       entity_id: tts.piper
 
