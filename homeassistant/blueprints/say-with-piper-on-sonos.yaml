@@ -149,7 +149,7 @@ sequence:
           # do a quick to make sure it isn't playing
           - wait_template: "{{ states( entity_group_leader ) != 'playing' }}"
             timeout:
-              seconds: 2
+              seconds: 4
           # we then put in a slight delay to ensure the pause
           - delay: >-
               {{ state_delay }}
