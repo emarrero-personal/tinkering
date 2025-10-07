@@ -1,0 +1,70 @@
+blueprint:
+  name: Play Media on Media Player at Scheduled Time
+  description: >
+    Play a specified media file on a list of media players at a scheduled time, saving and restoring their state, and verifying the volume is set.
+  domain: automation
+  input: {}
+fields:
+  media_players:
+    name: Media Players
+    description: List of media players to use
+    selector:
+       entity:
+         multiple: true
+           filter:
+             - domain: media_player
+   media_file:
+     name: Media File
+     description: The media file to play (e.g., /local/gong.mp3)
+     selector:
+       text:
+  target_volume:
+    name: Target Volume
+    description: Volume level to set (0.0 - 1.0)
+    default: 0.33
+    selector:
+       number:
+         min: 0.0
+         max: 1.0
+         step: 0.01
+  scheduled_time:
+     name: Scheduled Time
+     description: Time of day to play the media file (HH:MM:SS)
+     default: '12:00:00'
+     selector:
+       time:
+  volume_confirm_timeout:
+      name: Volume Confirm Timeout
+      description: Timeout (in seconds) to wait for volume confirmation
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 120
+          step: 1
+trigger:
+  - platform: time
+    at: !input scheduled_time
+actions:
+  - service: sonos.snapshot
+    data:
+      entity_id: !input media_players
+  - service: media_player.volume_set
+    data:
+      entity_id: !input media_players
+    volume_level: !input target_volume
+  - wait_template: >
+     {% set players = iif(media_players is string, [media_players], media_players) %}
+     {{ players | map('state_attr', 'volume_level') | select('equalto', target_volume | float) | list | count == players | count }}
+     timeout: '00:00:' ~ (!input volume_confirm_timeout | string).zfill(2)
+     continue_on_timeout: true
+  - service: media_player.play_media
+    data:
+      entity_id: !input media_players
+      media_content_id: !input media_file
+      media_content_type: "music"
+  - delay: '00:00:10'
+  - service: sonos.restore
+    data:
+      entity_id: !input media_players
+mode: single
