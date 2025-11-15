@@ -1,0 +1,76 @@
+blueprint:
+  name: Low Battery Notification
+  description: >
+    Sends a notification when any selected battery sensor (or all battery sensors)
+    falls below a defined threshold. The notification lists all devices below the threshold.
+  domain: automation
+
+  input:
+    battery_sensors:
+      name: Battery Sensors (optional)
+      description: >
+        Select battery sensors to monitor. If left empty, ALL sensors with
+        device_class=battery will be monitored automatically.
+      selector:
+        entity:
+          domain: sensor
+          multiple: true
+          device_class: battery
+      default: []
+
+    threshold:
+      name: Battery Threshold
+      description: Percentage at or below which the notification triggers.
+      default: 30
+      selector:
+        number:
+          min: 1
+          max: 100
+          unit_of_measurement: "%"
+
+trigger:
+  - platform: state
+    entity_id: !input battery_sensors
+    to: ~
+  - platform: state
+    entity_id: sensor.*
+    to: ~
+
+variables:
+  threshold: !input threshold
+  user_selected: !input battery_sensors
+
+  battery_entities: >
+    {% if user_selected | length > 0 %}
+      {{ expand(user_selected) }}
+    {% else %}
+      {{ states.sensor
+         | selectattr('attributes.device_class', 'equalto', 'battery')
+         | list }}
+    {% endif %}
+
+  low_battery_devices: >
+    {% set low = [] %}
+    {% for s in battery_entities %}
+      {% if s.state not in ['unknown', 'unavailable'] and s.state | int <= threshold %}
+        {% set _ = low.append(s) %}
+      {% endif %}
+    {% endfor %}
+    {{ low }}
+
+condition:
+  - condition: template
+    value_template: "{{ low_battery_devices | length > 0 }}"
+
+action:
+  - service: persistent_notification.create
+    data:
+      title: "Low Battery Alert"
+      message: >
+        The following devices have battery level ≤ {{ threshold }}%:
+        {% for item in low_battery_devices %}
+        • {{ item.name }} — {{ item.state }}%
+        {% endfor %}
+
+mode: single
+
